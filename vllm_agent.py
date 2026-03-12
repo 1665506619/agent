@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 from sam3.agent.vllm_agent_dataset import run_vllm_sam3_dataset
