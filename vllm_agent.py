@@ -14,7 +14,7 @@ AGENT_DIR = Path(__file__).resolve().parent
 DEFAULT_DATASET_PATH = (
     AGENT_DIR / "agent_datas" / "origin" / "hd_epic_qa_no_none_filtered.json"
 )
-DEFAULT_OUTPUT_DIR = os.path.dirname(AGENT_DIR) / "agent_datas" / "processed"
+DEFAULT_OUTPUT_DIR = AGENT_DIR.parent / "agent_datas" / "processed"
 
 
 def parse_args() -> argparse.Namespace:
