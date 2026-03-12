@@ -13,9 +13,11 @@ from .vllm_agent_utils import (
     clone_dataset,
     default_dataset_output_path,
     default_failed_debug_path,
+    is_completed_annotation,
     load_refseg_dataset,
     log,
     prediction_to_ann,
+    PROCESSED_ANSWER_MARKER,
     resolve_image_path,
     should_preserve_original_ann,
 )
@@ -23,6 +25,8 @@ from .vllm_agent_utils import (
 
 def process_annotation_task(
     *,
+    item_idx: int,
+    total_items: int,
     sample_idx: int,
     ann_idx: int,
     raw_image_path: str,
@@ -35,7 +39,8 @@ def process_annotation_task(
     max_generations: int,
 ) -> Dict[str, Any]:
     log(
-        f"Worker starting sample={sample_idx}, annotation={ann_idx}, "
+        f"Worker starting item={item_idx}/{total_items}, "
+        f"sample={sample_idx}, annotation={ann_idx}, "
         f"thread={threading.current_thread().name}"
     )
     try:
@@ -53,6 +58,8 @@ def process_annotation_task(
             list(original_ann) if preserve_original else prediction_to_ann(prediction)
         )
         return {
+            "item_idx": item_idx,
+            "total_items": total_items,
             "sample_idx": sample_idx,
             "annotation_idx": ann_idx,
             "image": raw_image_path,
@@ -62,9 +69,14 @@ def process_annotation_task(
             "preserve_original_ann": preserve_original,
             "num_masks": len(prediction.get("pred_masks", [])),
             "termination_reason": prediction.get("termination_reason"),
+            "output_json_path": prediction.get("output_json_path"),
+            "output_image_path": prediction.get("output_image_path"),
+            "agent_history_path": prediction.get("agent_history_path"),
         }
     except Exception as exc:
         return {
+            "item_idx": item_idx,
+            "total_items": total_items,
             "sample_idx": sample_idx,
             "annotation_idx": ann_idx,
             "image": raw_image_path,
@@ -74,6 +86,9 @@ def process_annotation_task(
             "preserve_original_ann": False,
             "num_masks": 0,
             "termination_reason": None,
+            "output_json_path": None,
+            "output_image_path": None,
+            "agent_history_path": None,
         }
 
 
@@ -82,7 +97,7 @@ def run_vllm_sam3_dataset(
     *,
     image_root: Optional[str] = None,
     api_key: Optional[str] = None,
-    model: str = "Qwen/Qwen3.5-4B",
+    model: str = "Qwen/Qwen3-VL-30B-A3B-Instruct",
     base_url: str = "http://127.0.0.1:8000/v1",
     output_json_path: Optional[str] = None,
     artifact_dir: Optional[str] = None,
@@ -98,6 +113,7 @@ def run_vllm_sam3_dataset(
     llm_max_retries: int = 0,
     llm_retry_backoff_s: float = 8.0,
     default_output_dir: Optional[Path] = None,
+    resume: bool = True,
 ) -> Path:
     dataset_path_obj = Path(dataset_path).resolve()
     if not dataset_path_obj.exists():
@@ -154,11 +170,31 @@ def run_vllm_sam3_dataset(
     artifact_root.mkdir(parents=True, exist_ok=True)
 
     output_dataset = clone_dataset(dataset)
+    resumed_from_snapshot = False
+    if resume and output_path.exists():
+        try:
+            existing_output = load_refseg_dataset(output_path)
+        except Exception as exc:
+            log(
+                "Failed to load existing output snapshot for resume. "
+                f"Starting fresh. error={exc}"
+            )
+        else:
+            if len(existing_output) != len(dataset):
+                log(
+                    "Existing output snapshot size does not match input dataset. "
+                    f"expected={len(dataset)}, actual={len(existing_output)}. Starting fresh."
+                )
+            else:
+                output_dataset = clone_dataset(existing_output)
+                resumed_from_snapshot = True
+                log(f"Resuming from existing output snapshot: {output_path}")
     samples_to_process = dataset[start_index:process_end_index]
     total_annotations = sum(
         len(sample.get("annotation", [])) for sample in samples_to_process
     )
     completed_annotations = 0
+    next_item_idx = 1
 
     print(
         f"Processing dataset: {dataset_path_obj} "
@@ -169,6 +205,8 @@ def run_vllm_sam3_dataset(
     print(f"Failed debug JSONL: {failed_path}")
     print(f"Artifact directory: {artifact_root}")
     print(f"Worker threads: {num_workers}")
+    if resumed_from_snapshot:
+        print(f"Resume snapshot: {output_path}")
 
     if not samples_to_process:
         log("No samples selected for processing. Writing untouched dataset snapshot.")
@@ -208,18 +246,40 @@ def run_vllm_sam3_dataset(
 
             for ann_idx, annotation in enumerate(annotations):
                 prompt = annotation.get("text", "")
+                item_idx = next_item_idx
+                next_item_idx += 1
                 annotation_artifact_dir = (
                     sample_artifact_dir / f"annotation_{ann_idx:02d}"
                 )
                 annotation_artifact_dir.mkdir(parents=True, exist_ok=True)
                 log(
-                    "Scheduling sample="
-                    f"{sample_idx}, annotation={ann_idx}, prompt={prompt!r}, "
+                    "Scheduling item="
+                    f"{item_idx}/{total_annotations}, sample={sample_idx}, "
+                    f"annotation={ann_idx}, prompt={prompt!r}, "
                     f"artifact_dir={annotation_artifact_dir}"
                 )
 
+                if is_completed_annotation(
+                    output_dataset[sample_idx]["annotation"][ann_idx],
+                    image=raw_image_path,
+                    prompt=prompt,
+                ):
+                    completed_annotations += 1
+                    log(
+                        "Skipping completed annotation from resume snapshot. "
+                        f"item={item_idx}/{total_annotations}, "
+                        f"sample={sample_idx}, annotation={ann_idx}"
+                    )
+                    print(
+                        f"[{completed_annotations}/{total_annotations}] "
+                        f"{raw_image_path} :: annotation {ann_idx + 1}/{len(annotations)} "
+                        "(resumed)"
+                    )
+                    continue
+
                 if image_error is not None:
                     output_dataset[sample_idx]["annotation"][ann_idx]["ann"] = []
+                    output_dataset[sample_idx]["annotation"][ann_idx]["answer"] = ""
                     append_failed_debug(
                         failed_path,
                         build_failed_payload(
@@ -241,6 +301,7 @@ def run_vllm_sam3_dataset(
 
                 if not isinstance(prompt, str) or not prompt.strip():
                     output_dataset[sample_idx]["annotation"][ann_idx]["ann"] = []
+                    output_dataset[sample_idx]["annotation"][ann_idx]["answer"] = ""
                     append_failed_debug(
                         failed_path,
                         build_failed_payload(
@@ -262,6 +323,8 @@ def run_vllm_sam3_dataset(
 
                 future = executor.submit(
                     process_annotation_task,
+                    item_idx=item_idx,
+                    total_items=total_annotations,
                     sample_idx=sample_idx,
                     ann_idx=ann_idx,
                     raw_image_path=raw_image_path,
@@ -274,6 +337,7 @@ def run_vllm_sam3_dataset(
                     max_generations=max_generations,
                 )
                 future_to_meta[future] = {
+                    "item_idx": item_idx,
                     "sample_idx": sample_idx,
                     "ann_idx": ann_idx,
                     "raw_image_path": raw_image_path,
@@ -283,17 +347,23 @@ def run_vllm_sam3_dataset(
         for future in concurrent.futures.as_completed(future_to_meta):
             meta = future_to_meta[future]
             result = future.result()
+            item_idx = result["item_idx"]
             sample_idx = result["sample_idx"]
             ann_idx = result["annotation_idx"]
             raw_image_path = result["image"]
             output_dataset[sample_idx]["annotation"][ann_idx]["ann"] = result["ann"]
+            output_dataset[sample_idx]["annotation"][ann_idx]["answer"] = (
+                "" if result["error"] is not None else PROCESSED_ANSWER_MARKER
+            )
 
             if result["error"] is not None:
                 print(
-                    f"Failed on sample {sample_idx}, annotation {ann_idx}: {result['error']}"
+                    f"Failed on item {item_idx}/{total_annotations}, "
+                    f"sample {sample_idx}, annotation {ann_idx}: {result['error']}"
                 )
                 log(
-                    f"Agent run failed for sample={sample_idx}, annotation={ann_idx}: "
+                    f"Agent run failed for item={item_idx}/{total_annotations}, "
+                    f"sample={sample_idx}, annotation={ann_idx}: "
                     f"{result['error']}"
                 )
                 append_failed_debug(
@@ -309,12 +379,14 @@ def run_vllm_sam3_dataset(
             elif result["preserve_original_ann"]:
                 log(
                     "Applied original ann because final pred_masks is empty. "
+                    f"item={item_idx}/{total_annotations}, "
                     f"sample={sample_idx}, annotation={ann_idx}, "
                     f"termination_reason={result['termination_reason']}"
                 )
             else:
                 log(
                     "Prediction converted to ann. "
+                    f"item={item_idx}/{total_annotations}, "
                     f"sample={sample_idx}, annotation={ann_idx}, "
                     f"num_masks={result['num_masks']}"
                 )
@@ -327,7 +399,8 @@ def run_vllm_sam3_dataset(
             )
             atomic_json_dump(output_dataset, output_path)
             log(
-                f"Finished sample={sample_idx}, annotation={ann_idx}. Progress snapshot saved."
+                f"Finished item={item_idx}/{total_annotations}, "
+                f"sample={sample_idx}, annotation={ann_idx}. Progress snapshot saved."
             )
 
     log(f"Dataset processing finished successfully. Output JSON at {output_path}.")

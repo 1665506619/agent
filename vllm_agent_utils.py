@@ -116,6 +116,31 @@ def build_failed_payload(
     }
 
 
+PROCESSED_ANSWER_MARKER = "processed"
+
+
+def is_completed_annotation(
+    annotation: Dict[str, Any],
+    *,
+    image: str,
+    prompt: Any,
+) -> bool:
+    answer = annotation.get("answer")
+    if answer == PROCESSED_ANSWER_MARKER:
+        return True
+
+    # Backward compatibility for older structured answer payloads.
+    if isinstance(answer, dict):
+        return str(answer.get("status", "")).lower() == "success"
+    if isinstance(answer, str) and answer.strip():
+        try:
+            payload = json.loads(answer)
+        except json.JSONDecodeError:
+            return False
+        return isinstance(payload, dict) and str(payload.get("status", "")).lower() == "success"
+    return False
+
+
 def prediction_to_ann(prediction: Dict[str, Any]) -> List[str]:
     orig_h = int(prediction["orig_img_h"])
     orig_w = int(prediction["orig_img_w"])

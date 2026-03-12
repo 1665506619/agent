@@ -50,6 +50,11 @@ def parse_args() -> argparse.Namespace:
         help="JSONL file that records failed annotations for retry.",
     )
     parser.add_argument(
+        "--no-resume",
+        action="store_true",
+        help="Ignore existing output snapshots and restart dataset processing from scratch.",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=None,
@@ -80,7 +85,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--model",
-        default="Qwen/Qwen3-VL-235B-A22B-Instruct",
+        default="Qwen/Qwen3-VL-30B-A3B-Instruct",
         help="Model name served by the OpenAI-compatible endpoint.",
     )
     parser.add_argument(
@@ -184,6 +189,7 @@ def main() -> None:
         llm_max_retries=args.llm_max_retries,
         llm_retry_backoff_s=args.llm_retry_backoff_s,
         default_output_dir=DEFAULT_OUTPUT_DIR,
+        resume=not args.no_resume,
     )
     print(f"\n=== Dataset Processing Complete ===\n{output_path}")
 
