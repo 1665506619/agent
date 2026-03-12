@@ -89,7 +89,7 @@ def run_vllm_sam3_dataset(
     failed_debug_path: Optional[str] = None,
     debug: bool = False,
     confidence_threshold: float = 0.5,
-    max_generations: int = 100,
+    max_generations: int = 20,
     limit: Optional[int] = None,
     start_index: int = 0,
     num_workers: int = 1,

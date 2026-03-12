@@ -127,7 +127,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--max-generations",
         type=int,
-        default=100,
+        default=20,
         help="Maximum MLLM generation rounds in the agent loop.",
     )
     parser.add_argument(

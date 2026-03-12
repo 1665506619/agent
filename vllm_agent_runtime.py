@@ -196,7 +196,7 @@ def run_vllm_sam3_agent(
     output_dir: str = "agent_output_vllm",
     debug: bool = False,
     confidence_threshold: float = 0.5,
-    max_generations: int = 100,
+    max_generations: int = 20,
     sam3_checkpoint_path: Optional[str] = None,
     llm_request_interval_s: float = 0.0,
     llm_max_retries: int = 0,
