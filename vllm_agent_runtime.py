@@ -144,6 +144,7 @@ def run_agent_once(
 
     processor = runtime["sam3_processor"]
     original_threshold = float(runtime["confidence_threshold"])
+    log_prefix = f"[{base_filename} thread={threading.current_thread().name}]"
     try:
         processor.set_confidence_threshold(original_threshold)
         log(f"Calling agent_inference. confidence_threshold={original_threshold:.2f}")
@@ -155,6 +156,7 @@ def run_agent_once(
             call_sam_service=runtime["call_sam_service"],
             max_generations=max_generations,
             output_dir=output_dir,
+            log_prefix=log_prefix,
         )
         log(
             "agent_inference finished. "

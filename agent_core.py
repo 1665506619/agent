@@ -5,6 +5,7 @@
 import copy
 import json
 import os
+import threading
 
 import cv2
 from PIL import Image
@@ -144,6 +145,7 @@ def agent_inference(
     call_sam_service=call_sam_service,
     max_generations: int = 8,
     output_dir="../../sam3_agent_out",
+    log_prefix: str = "",
 ):
     """
     Given a text prompt and an image, this tool will perform all aspects of agentic problem solving,
@@ -207,14 +209,19 @@ def agent_inference(
             ],
         },
     ]
-    print(f"> Text prompt: {initial_text_prompt}")
-    print(f"> Image path: {img_path}")
+    prefix = f"{log_prefix} " if log_prefix else ""
+    print(f"{prefix}> Text prompt: {initial_text_prompt}")
+    print(f"{prefix}> Image path: {img_path}")
 
     print("\n\n")
-    print("-" * 30 + f" Round {str(generation_count + 1)}" + "-" * 30)
+    print(f"{prefix}" + "-" * 30 + f" Round {str(generation_count + 1)}" + "-" * 30)
     print("\n\n")
     generated_text = send_generate_request(messages)
-    print(f"\n>>> MLLM Response [start]\n{generated_text}\n<<< MLLM Response [end]\n")
+    print(
+        f"\n{prefix}>>> MLLM Response [start]\n"
+        f"{generated_text}\n"
+        f"{prefix}<<< MLLM Response [end]\n"
+    )
     while generated_text is not None:
         save_debug_messages(messages, debug, debug_folder_path, debug_jsonl_path)
         assert (
@@ -550,14 +557,16 @@ def agent_inference(
             )
 
         print("\n\n")
-        print("-" * 30 + f" Round {str(generation_count + 1)}" + "-" * 30)
+        print(f"{prefix}" + "-" * 30 + f" Round {str(generation_count + 1)}" + "-" * 30)
         print("\n\n")
         generated_text = send_generate_request(messages)
         print(
-            f"\n>>> MLLM Response [start]\n{generated_text}\n<<< MLLM Response [end]\n"
+            f"\n{prefix}>>> MLLM Response [start]\n"
+            f"{generated_text}\n"
+            f"{prefix}<<< MLLM Response [end]\n"
         )
 
-    print("\n\n>>> SAM 3 Agent execution ended.\n\n")
+    print(f"\n\n{prefix}>>> SAM 3 Agent execution ended.\n\n")
 
     error_save_path = os.path.join(
         error_save_dir,
