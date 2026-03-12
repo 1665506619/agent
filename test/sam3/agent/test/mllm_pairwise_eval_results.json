@@ -1,0 +1,133 @@
+{
+  "before_path": "/root/sam3/sam3/agent/agent_datas/origin/hd_epic_qa_no_none_filtered.json",
+  "after_path": "/root/sam3/sam3/agent/agent_datas/processed/agent_hd_epic_qa_no_none_filtered.json",
+  "model": "Qwen/Qwen3-VL-30B-A3B-Instruct",
+  "base_url": "https://api.siliconflow.cn/v1",
+  "request_interval_s": 3.0,
+  "max_retries": 5,
+  "retry_backoff_s": 8.0,
+  "evaluated_pairs": 2,
+  "wins": {
+    "before": 0,
+    "after": 0,
+    "tie": 2,
+    "invalid": 0
+  },
+  "win_rates": {
+    "before": 0.0,
+    "after": 0.0,
+    "tie": 1.0
+  },
+  "before_stats": {
+    "count": 2,
+    "avg_score": 9.0,
+    "median_score": 9.0,
+    "non_empty_mask_count": 2,
+    "empty_mask_count": 0,
+    "error_or_missing_count": 0,
+    "non_empty_mask_rate": 1.0,
+    "empty_mask_rate": 0.0,
+    "error_or_missing_rate": 0.0
+  },
+  "after_stats": {
+    "count": 2,
+    "avg_score": 9.0,
+    "median_score": 9.0,
+    "non_empty_mask_count": 2,
+    "empty_mask_count": 0,
+    "error_or_missing_count": 0,
+    "non_empty_mask_rate": 1.0,
+    "empty_mask_rate": 0.0,
+    "error_or_missing_rate": 0.0
+  },
+  "avg_before_score": 9.0,
+  "avg_after_score": 9.0,
+  "median_before_score": 9.0,
+  "median_after_score": 9.0,
+  "avg_score_gain": 0.0,
+  "median_score_gain": 0.0,
+  "improved_count": 0,
+  "worsened_count": 0,
+  "tied_count": 2,
+  "improved_rate": 0.0,
+  "worsened_rate": 0.0,
+  "tied_rate": 1.0,
+  "large_improvement_count": 0,
+  "large_regression_count": 0,
+  "top_improvements": [],
+  "top_regressions": [],
+  "details": [
+    {
+      "sample_idx": 0,
+      "annotation_idx": 0,
+      "image": "hd_epic_images/P01-20240202-110250_10140.jpg",
+      "query": "Which part of the sink is currently being handled for cleaning? Please output the segmentation mask.",
+      "before_summary": "status=success, num_masks=1",
+      "after_summary": "status=success, num_masks=1",
+      "winner": "tie",
+      "before_score": 10,
+      "after_score": 10,
+      "score_delta": 0,
+      "before_bucket": "non_empty_mask",
+      "after_bucket": "non_empty_mask",
+      "before_judge_raw_result": {
+        "score": 10,
+        "confidence": 5,
+        "reason": "The segmentation correctly identifies the black strainer being held over the sink, which is the object being cleaned. The mask is precise and complete, accurately isolating the item of interest."
+      },
+      "after_judge_raw_result": {
+        "score": 10,
+        "confidence": 5,
+        "reason": "The segmentation correctly identifies the black strainer being held over the sink, which is the object being cleaned. The mask is precise and complete, accurately isolating the item of interest."
+      },
+      "judge_raw_result": {
+        "segmentation_1": {
+          "score": 10,
+          "confidence": 5,
+          "reason": "The segmentation correctly identifies the black strainer being held over the sink, which is the object being cleaned. The mask is precise and complete, accurately isolating the item of interest."
+        },
+        "segmentation_2": {
+          "score": 10,
+          "confidence": 5,
+          "reason": "The segmentation correctly identifies the black strainer being held over the sink, which is the object being cleaned. The mask is precise and complete, accurately isolating the item of interest."
+        }
+      }
+    },
+    {
+      "sample_idx": 0,
+      "annotation_idx": 1,
+      "image": "hd_epic_images/P01-20240202-110250_10140.jpg",
+      "query": "Find the objects used for scrubbing surfaces around the sink. Please output the segmentation mask.",
+      "before_summary": "status=success, num_masks=3",
+      "after_summary": "status=success, num_masks=3",
+      "winner": "tie",
+      "before_score": 8,
+      "after_score": 8,
+      "score_delta": 0,
+      "before_bucket": "non_empty_mask",
+      "after_bucket": "non_empty_mask",
+      "before_judge_raw_result": {
+        "score": 8,
+        "confidence": 5,
+        "reason": "The segmentation correctly identifies three distinct scrubbing objects: a pink sponge, a blue scrubbing pad, and a green sponge, all located on the counter around the sink. The masks are precise and cover the intended items without including extraneous objects."
+      },
+      "after_judge_raw_result": {
+        "score": 8,
+        "confidence": 5,
+        "reason": "The segmentation accurately highlights three scrubbing tools: a pink sponge, a blue scrubbing pad, and a green sponge, positioned on the counter near the sink. The masks are well-defined and correctly identify the relevant objects."
+      },
+      "judge_raw_result": {
+        "segmentation_1": {
+          "score": 8,
+          "confidence": 5,
+          "reason": "The segmentation correctly identifies three distinct scrubbing objects: a pink sponge, a blue scrubbing pad, and a green sponge, all located on the counter around the sink. The masks are precise and cover the intended items without including extraneous objects."
+        },
+        "segmentation_2": {
+          "score": 8,
+          "confidence": 5,
+          "reason": "The segmentation accurately highlights three scrubbing tools: a pink sponge, a blue scrubbing pad, and a green sponge, positioned on the counter near the sink. The masks are well-defined and correctly identify the relevant objects."
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+    "original_image_path": "/lustre/fs11/portfolios/llmservice/projects/llmservice_nlp_fm/users/zhidingy/wsh-ws/playground/region/data/hd_epic_images/P01-20240202-175627_2290.jpg",
+    "output_image_path": "/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/InsructSAM_data_promote/sam3/agent/agent_datas/processed/agent_hd_epic_qa_no_none_filtered_artifacts/sample_00017/annotation_03/sam_out/-lustre-fs11-portfolios-llmservice-projects-llmservice_nlp_fm-users-zhidingy-wsh-ws-playground-region-data-hd_epic_images-P01-20240202-175627_2290.jpg/clothing.png",
+    "orig_img_h": 1408,
+    "orig_img_w": 1408,
+    "pred_boxes": [],
+    "pred_masks": [],
+    "pred_scores": []
+}

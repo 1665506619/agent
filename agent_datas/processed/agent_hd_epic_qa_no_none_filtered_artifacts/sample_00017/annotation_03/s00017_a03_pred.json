@@ -1,0 +1,27 @@
+{
+    "original_image_path": "/lustre/fs11/portfolios/llmservice/projects/llmservice_nlp_fm/users/zhidingy/wsh-ws/playground/region/data/hd_epic_images/P01-20240202-175627_2290.jpg",
+    "orig_img_h": 1408,
+    "orig_img_w": 1408,
+    "pred_boxes": [
+        [
+            0.6235540509223938,
+            0.5940202474594116,
+            0.32433515787124634,
+            0.2551882863044739
+        ]
+    ],
+    "pred_scores": [
+        0.82135409116745
+    ],
+    "pred_masks": [
+        "egfU16g[17G9J5I5L3O1O1N2M3N20O2M2E=Kelb1FSS]Ni0@b0H2M5J5N2N2O1O1O1O1O001O1O100O1O1O100O1O101N2O2M2N2`gNVMgW1l2ngN`MnW1Z3O2O1N2N2O0O101N1O100O1O100O1O010O1O10000O101N010O10O01000000O100O010O10O10O10O0100O010O1O010O100O1O00100O100O100O1O010O100O100O1O2O0O1O2O0O1O1O100O1O100O1O1O100O1O100O1O1O100O001O100O010O1O100O00101N1O1O100O2N1O1O1O2O0O1O1O101N1O100O1O1O2O0O1O10O01O100O010O0010O010O010O001000O010O10O010O0100O10O01O101N1O2O2M3M101N1O101N1O101N1O100O1O100O1O100O100O1O100O1O100O1O1O1O100O1O1O1O00100O2N1O1O100O1O1O1O1O101N1O1O1O100O1O1O100O1O00100O10O0100O010O1O100O1O1000O01000001N00010O1O01N2N1O1O2N1O2N1N2N3N1O2N1N3M2O2O000O2O000O2O1O00001N1000000O101O0O100O2O1N1O2O0O2N1O1O2N1N2O2N1N3N2N1O1O2N1O2M2O2N1O2N1N3N1N3N1O1N3N1O1O2N1N2O2N1O2M2O2M2O101M3M2N3N1O2N1N3M2O1N3N1N2N3M3N1N3M2N2O2M2N2N3M2O1N3M2N2N3N1N2N2N3M2O1N3M2M3N2N3M2M4M2N2N3M3L3N3M2N3M2M4M3N2M2M4K5L4K6K4JXiT3"
+    ],
+    "text_prompt": "Identify the patterned clothing being worn by the person while they are at the sink. Please output the segmentation mask.",
+    "image_path": "/lustre/fs11/portfolios/llmservice/projects/llmservice_nlp_fm/users/zhidingy/wsh-ws/playground/region/data/hd_epic_images/P01-20240202-175627_2290.jpg",
+    "confidence_threshold": 0.5,
+    "llm_provider": "openai_compatible",
+    "llm_model": "Qwen/Qwen2.5-VL-72B-Instruct",
+    "output_json_path": "/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/InsructSAM_data_promote/sam3/agent/agent_datas/processed/agent_hd_epic_qa_no_none_filtered_artifacts/sample_00017/annotation_03/s00017_a03_pred.json",
+    "output_image_path": "/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/InsructSAM_data_promote/sam3/agent/agent_datas/processed/agent_hd_epic_qa_no_none_filtered_artifacts/sample_00017/annotation_03/s00017_a03_pred.png",
+    "agent_history_path": "/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/InsructSAM_data_promote/sam3/agent/agent_datas/processed/agent_hd_epic_qa_no_none_filtered_artifacts/sample_00017/annotation_03/s00017_a03_history.json"
+}
