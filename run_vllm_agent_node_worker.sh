@@ -75,6 +75,19 @@ WORKER_LOG="${NODE_LOG_DIR}/annotation_worker.log"
 export PYTHONPATH="$REPO_ROOT:${PYTHONPATH:-}"
 mkdir -p "$NODE_LOG_DIR" "$DELTA_DIR"
 
+echo "[DEBUG][node ${NODE_RANK}] host=$(hostname) pid=$$"
+echo "[DEBUG][node ${NODE_RANK}] cuda_visible_devices=${CUDA_VISIBLE_DEVICES:-unset}"
+echo "[DEBUG][node ${NODE_RANK}] vllm_bin=${VLLM_BIN}"
+echo "[DEBUG][node ${NODE_RANK}] base_url=${VLLM_BASE_URL} tp=${TENSOR_PARALLEL_SIZE} dp=${DATA_PARALLEL_SIZE}"
+if command -v pgrep >/dev/null 2>&1; then
+  echo "[DEBUG][node ${NODE_RANK}] pre-existing vllm serve processes:"
+  pgrep -af "vllm.*serve" || true
+fi
+if command -v ss >/dev/null 2>&1; then
+  echo "[DEBUG][node ${NODE_RANK}] listeners on port ${VLLM_PORT}:"
+  ss -ltnp "( sport = :${VLLM_PORT} )" || true
+fi
+
 echo "[INFO][node ${NODE_RANK}] starting vLLM on ${VLLM_BASE_URL}"
 cd "$PROJECT_ROOT"
 "$VLLM_BIN" serve "$MODEL" \
