@@ -20,13 +20,18 @@ CHECKPOINT_PATH="${CHECKPOINT_PATH:-$STATE_ROOT/merge_checkpoint.json}"
 MODEL="${MODEL:-Qwen/Qwen3-VL-30B-A3B-Instruct}"
 IMAGE_ROOT="${IMAGE_ROOT:-/lustre/fs11/portfolios/llmservice/users/zhidingy/wsh-ws/playground/region/data}"
 
-NUM_NODES="${NUM_NODES:-${SLURM_NNODES:-8}}"
-CPUS_PER_TASK="${CPUS_PER_TASK:-${SLURM_CPUS_PER_TASK:-64}}"
+NUM_NODES="${NUM_NODES:-${SLURM_JOB_NUM_NODES:-${SLURM_NNODES:-1}}}"
+NODE_RANK="${NODE_RANK:-${SLURM_PROCID:-${SLURM_NODEID:-0}}}"
 ORIGIN_RECURSIVE="${ORIGIN_RECURSIVE:-0}"
 MERGE_INTERVAL_S="${MERGE_INTERVAL_S:-60}"
+MANIFEST_WAIT_TIMEOUT_S="${MANIFEST_WAIT_TIMEOUT_S:-1800}"
+WORKER_WAIT_TIMEOUT_S="${WORKER_WAIT_TIMEOUT_S:-86400}"
 
 JOB_ID="${SLURM_JOB_ID:-manual}"
 MANIFEST_PATH="${MANIFEST_PATH:-$STATE_ROOT/manifests/manifest_${JOB_ID}.json}"
+SYNC_DIR="${SYNC_DIR:-$STATE_ROOT/sync/job_${JOB_ID}}"
+MANIFEST_READY_PATH="$SYNC_DIR/manifest.ready"
+MANIFEST_FAILED_PATH="$SYNC_DIR/manifest.failed"
 
 MANIFEST_PYTHON="${MANIFEST_PYTHON:-python}"
 SHARD_BUILDER_SCRIPT="${SHARD_BUILDER_SCRIPT:-$SCRIPT_DIR/build_vllm_agent_file_shards.py}"
@@ -53,19 +58,32 @@ if [[ ! -f "$MERGE_SCRIPT" ]]; then
   echo "[ERROR] merge script not found: $MERGE_SCRIPT"
   exit 2
 fi
+if ! [[ "$NUM_NODES" =~ ^[0-9]+$ ]] || [[ "$NUM_NODES" -lt 1 ]]; then
+  echo "[ERROR] NUM_NODES must be a positive integer, got: ${NUM_NODES}"
+  exit 2
+fi
+if ! [[ "$NODE_RANK" =~ ^[0-9]+$ ]] || [[ "$NODE_RANK" -lt 0 ]]; then
+  echo "[ERROR] NODE_RANK must be a non-negative integer, got: ${NODE_RANK}"
+  exit 2
+fi
+if [[ "$NODE_RANK" -ge "$NUM_NODES" ]]; then
+  echo "[ERROR] NODE_RANK=${NODE_RANK} out of range for NUM_NODES=${NUM_NODES}"
+  exit 2
+fi
 
-mkdir -p "$PROCESSED_DIR" "$DELTA_DIR" "$(dirname "$MANIFEST_PATH")" "$(dirname "$CHECKPOINT_PATH")"
+mkdir -p "$PROCESSED_DIR" "$DELTA_DIR" "$(dirname "$MANIFEST_PATH")" "$(dirname "$CHECKPOINT_PATH")" "$SYNC_DIR"
 
 echo "[INFO] job_id=${JOB_ID}"
 echo "[INFO] num_nodes=${NUM_NODES}"
+echo "[INFO] node_rank=${NODE_RANK}"
 echo "[INFO] origin_dir=${ORIGIN_DIR}"
 echo "[INFO] processed_dir=${PROCESSED_DIR}"
 echo "[INFO] state_root=${STATE_ROOT}"
 echo "[INFO] manifest_path=${MANIFEST_PATH}"
+echo "[INFO] sync_dir=${SYNC_DIR}"
 
 merge_once() {
   local active_job_id="${1:-}"
-  # 将 delta 的增量结果合并回 processed，并可按策略清理已消费 delta 文件
   local merge_cmd=(
     "$MANIFEST_PYTHON" "$MERGE_SCRIPT"
     --origin-dir "$ORIGIN_DIR"
@@ -80,34 +98,94 @@ merge_once() {
   "${merge_cmd[@]}"
 }
 
+build_manifest() {
+  echo "[INFO][rank ${NODE_RANK}] building annotation-level manifest..."
+  local manifest_cmd=(
+    "$MANIFEST_PYTHON" "$SHARD_BUILDER_SCRIPT"
+    --origin-dir "$ORIGIN_DIR"
+    --processed-dir "$PROCESSED_DIR"
+    --num-shards "$NUM_NODES"
+    --output "$MANIFEST_PATH"
+  )
+  if [[ "$ORIGIN_RECURSIVE" == "1" ]]; then
+    manifest_cmd+=(--recursive)
+  fi
+  "${manifest_cmd[@]}"
+}
+
 start_periodic_merge() {
-  # 后台周期 merge，保证长作业运行中 processed 也会持续推进
   (
     while true; do
       if ! merge_once "$JOB_ID"; then
-        echo "[WARN] periodic merge failed; will retry in ${MERGE_INTERVAL_S}s"
+        echo "[WARN][rank ${NODE_RANK}] periodic merge failed; will retry in ${MERGE_INTERVAL_S}s"
       fi
       sleep "$MERGE_INTERVAL_S"
     done
   ) &
 }
 
-# Make sure previous WAL progress is materialized before creating a new task manifest.
-merge_once "$JOB_ID"
+wait_for_manifest() {
+  local waited=0
+  while [[ "$waited" -lt "$MANIFEST_WAIT_TIMEOUT_S" ]]; do
+    if [[ -f "$MANIFEST_FAILED_PATH" ]]; then
+      echo "[ERROR][rank ${NODE_RANK}] manifest preparation failed: $(cat "$MANIFEST_FAILED_PATH" 2>/dev/null || true)"
+      return 1
+    fi
+    if [[ -f "$MANIFEST_READY_PATH" && -f "$MANIFEST_PATH" ]]; then
+      return 0
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  echo "[ERROR][rank ${NODE_RANK}] timeout waiting for manifest (${MANIFEST_WAIT_TIMEOUT_S}s): $MANIFEST_PATH"
+  return 1
+}
 
-echo "[INFO] building annotation-level manifest..."
-# 根据 processed 当前状态生成“未完成 annotation 任务清单”
-manifest_cmd=(
-  "$MANIFEST_PYTHON" "$SHARD_BUILDER_SCRIPT"
-  --origin-dir "$ORIGIN_DIR"
-  --processed-dir "$PROCESSED_DIR"
-  --num-shards "$NUM_NODES"
-  --output "$MANIFEST_PATH"
-)
-if [[ "$ORIGIN_RECURSIVE" == "1" ]]; then
-  manifest_cmd+=(--recursive)
-fi
-"${manifest_cmd[@]}"
+worker_done_file() {
+  local rank="$1"
+  echo "$SYNC_DIR/worker_rank_${rank}.done"
+}
+
+worker_failed_file() {
+  local rank="$1"
+  echo "$SYNC_DIR/worker_rank_${rank}.failed"
+}
+
+mark_worker_status() {
+  local rank="$1"
+  local rc="$2"
+  rm -f "$(worker_done_file "$rank")" "$(worker_failed_file "$rank")"
+  if [[ "$rc" -eq 0 ]]; then
+    date -u +"%Y-%m-%dT%H:%M:%SZ" > "$(worker_done_file "$rank")"
+  else
+    printf "rc=%s time=%s\n" "$rc" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" > "$(worker_failed_file "$rank")"
+  fi
+}
+
+wait_for_all_worker_statuses() {
+  local waited=0
+  while [[ "$waited" -lt "$WORKER_WAIT_TIMEOUT_S" ]]; do
+    local done_count
+    local fail_count
+    done_count=$(find "$SYNC_DIR" -maxdepth 1 -type f -name 'worker_rank_*.done' | wc -l)
+    fail_count=$(find "$SYNC_DIR" -maxdepth 1 -type f -name 'worker_rank_*.failed' | wc -l)
+    local total=$((done_count + fail_count))
+
+    if [[ "$total" -ge "$NUM_NODES" ]]; then
+      echo "[INFO][rank 0] worker status collected: done=${done_count}, failed=${fail_count}, expected=${NUM_NODES}"
+      if [[ "$fail_count" -gt 0 ]]; then
+        return 1
+      fi
+      return 0
+    fi
+
+    sleep 2
+    waited=$((waited + 2))
+  done
+
+  echo "[ERROR][rank 0] timeout waiting worker status files (${WORKER_WAIT_TIMEOUT_S}s)"
+  return 1
+}
 
 # Export runtime settings for node workers.
 export PROJECT_ROOT
@@ -141,37 +219,71 @@ export VLLM_STARTUP_TIMEOUT_S="${VLLM_STARTUP_TIMEOUT_S:-}"
 export LOG_ROOT="${LOG_ROOT:-}"
 
 MERGER_PID=""
-if [[ "$MERGE_INTERVAL_S" -gt 0 ]]; then
-  echo "[INFO] starting periodic merge loop (interval=${MERGE_INTERVAL_S}s)"
-  start_periodic_merge
-  MERGER_PID="$!"
+if [[ "$NODE_RANK" -eq 0 ]]; then
+  rm -f "$MANIFEST_READY_PATH" "$MANIFEST_FAILED_PATH"
+  rm -f "$SYNC_DIR"/worker_rank_*.done "$SYNC_DIR"/worker_rank_*.failed
+
+  if ! merge_once "$JOB_ID"; then
+    echo "pre_merge_failed" > "$MANIFEST_FAILED_PATH"
+    echo "[ERROR][rank 0] pre-merge failed"
+    exit 1
+  fi
+  if ! build_manifest; then
+    echo "build_manifest_failed" > "$MANIFEST_FAILED_PATH"
+    echo "[ERROR][rank 0] build manifest failed"
+    exit 1
+  fi
+
+  date -u +"%Y-%m-%dT%H:%M:%SZ" > "$MANIFEST_READY_PATH"
+  if [[ "$MERGE_INTERVAL_S" -gt 0 ]]; then
+    echo "[INFO][rank 0] starting periodic merge loop (interval=${MERGE_INTERVAL_S}s)"
+    start_periodic_merge
+    MERGER_PID="$!"
+  fi
+else
+  if ! wait_for_manifest; then
+    mark_worker_status "$NODE_RANK" 1
+    exit 1
+  fi
 fi
 
-# 拉起每节点一个 worker，按 rank 消费 manifest 里的任务
 set +e
-srun \
-  --nodes "$NUM_NODES" \
-  --ntasks "$NUM_NODES" \
-  --ntasks-per-node 1 \
-  --cpus-per-task "$CPUS_PER_TASK" \
-  --kill-on-bad-exit=1 \
-  --label \
+SLURM_NODEID="$NODE_RANK" SLURM_PROCID="$NODE_RANK" SLURM_JOB_ID="$JOB_ID" \
   bash "$NODE_WORKER_SCRIPT" --manifest "$MANIFEST_PATH"
-SRUN_RC=$?
+WORKER_RC=$?
 set -e
+
+mark_worker_status "$NODE_RANK" "$WORKER_RC"
+
+if [[ "$NODE_RANK" -ne 0 ]]; then
+  if [[ "$WORKER_RC" -ne 0 ]]; then
+    echo "[ERROR][rank ${NODE_RANK}] worker failed rc=${WORKER_RC}"
+    exit "$WORKER_RC"
+  fi
+  echo "[INFO][rank ${NODE_RANK}] worker completed"
+  exit 0
+fi
+
+OVERALL_RC=0
+if ! wait_for_all_worker_statuses; then
+  OVERALL_RC=1
+fi
 
 if [[ -n "$MERGER_PID" ]]; then
   kill "$MERGER_PID" >/dev/null 2>&1 || true
   wait "$MERGER_PID" 2>/dev/null || true
 fi
 
-# 收尾 merge：确保本次作业 WAL 全量落盘，并清理已消费 delta
-merge_once
-
-echo "[INFO] final merge completed"
-if [[ "$SRUN_RC" -ne 0 ]]; then
-  echo "[ERROR] srun workers failed rc=${SRUN_RC}"
-  exit "$SRUN_RC"
+if ! merge_once; then
+  echo "[ERROR][rank 0] final merge failed"
+  OVERALL_RC=1
+else
+  echo "[INFO][rank 0] final merge completed"
 fi
 
-echo "[INFO] multi-node run finished successfully"
+if [[ "$OVERALL_RC" -ne 0 ]]; then
+  echo "[ERROR][rank 0] multi-node run failed"
+  exit "$OVERALL_RC"
+fi
+
+echo "[INFO][rank 0] multi-node run finished successfully"
