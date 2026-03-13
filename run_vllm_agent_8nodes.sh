@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=vllm-agent-8nodes
-#SBATCH --nodes=8
-#SBATCH --ntasks-per-node=1
-#SBATCH --gres=gpu:8
-#SBATCH --cpus-per-task=64
-#SBATCH --time=24:00:00
+
 #SBATCH --output=slurm-%x-%j.out
 
 set -euo pipefail
