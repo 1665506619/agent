@@ -73,57 +73,7 @@ VLLM_LOG="${NODE_LOG_DIR}/vllm_server.log"
 WORKER_LOG="${NODE_LOG_DIR}/annotation_worker.log"
 
 export PYTHONPATH="$REPO_ROOT:${PYTHONPATH:-}"
-
-TASK_COUNT="$(
-  "$AGENT_PYTHON" - "$MANIFEST_PATH" "$NODE_RANK" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-manifest_path = Path(sys.argv[1]).resolve()
-rank = int(sys.argv[2])
-manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-count = 0
-for shard in manifest.get("shards", []):
-    if int(shard.get("rank", -1)) == rank:
-        tasks = shard.get("tasks", [])
-        count = len(tasks) if isinstance(tasks, list) else 0
-        break
-print(count)
-PY
-)"
-if [[ "$TASK_COUNT" -eq 0 ]]; then
-  # 空分片节点直接退出，不启动 vLLM 省资源
-  echo "[INFO][node ${NODE_RANK}] no tasks assigned; exiting without starting vLLM"
-  exit 0
-fi
-echo "[INFO][node ${NODE_RANK}] assigned tasks: ${TASK_COUNT}"
 mkdir -p "$NODE_LOG_DIR" "$DELTA_DIR"
-
-if [[ ! -x "$VLLM_BIN" ]]; then
-  if command -v vllm >/dev/null 2>&1; then
-    VLLM_BIN="$(command -v vllm)"
-  else
-    echo "[ERROR] vllm executable not found. Set VLLM_BIN or install in PATH."
-    exit 2
-  fi
-fi
-
-if ! command -v curl >/dev/null 2>&1; then
-  echo "[ERROR] curl is required for vLLM readiness checks"
-  exit 2
-fi
-
-VLLM_PID=""
-cleanup() {
-  # 节点退出时回收 vLLM 进程，防止残留
-  if [[ -n "$VLLM_PID" ]] && kill -0 "$VLLM_PID" >/dev/null 2>&1; then
-    echo "[INFO][node ${NODE_RANK}] stopping vLLM (pid=${VLLM_PID})"
-    kill "$VLLM_PID" >/dev/null 2>&1 || true
-    wait "$VLLM_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT INT TERM
 
 echo "[INFO][node ${NODE_RANK}] starting vLLM on ${VLLM_BASE_URL}"
 cd "$PROJECT_ROOT"
