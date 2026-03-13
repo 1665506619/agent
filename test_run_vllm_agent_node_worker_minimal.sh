@@ -95,6 +95,44 @@ build_manifest() {
   "${manifest_cmd[@]}"
 }
 
+write_minimal_manifest() {
+  echo "[INFO][rank ${NODE_RANK}] writing minimal manifest: ${MANIFEST_PATH}"
+  "$MANIFEST_PYTHON" - "$MANIFEST_PATH" "$ORIGIN_DIR" "$PROCESSED_DIR" "$NUM_NODES" "$NODE_RANK" <<'PY'
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+manifest_path = Path(sys.argv[1]).resolve()
+origin_dir = str(Path(sys.argv[2]).resolve())
+processed_dir = str(Path(sys.argv[3]).resolve())
+num_nodes = int(sys.argv[4])
+node_rank = int(sys.argv[5])
+
+manifest = {
+    "created_at_utc": datetime.now(timezone.utc).isoformat(),
+    "origin_dir": origin_dir,
+    "processed_dir": processed_dir,
+    "num_shards": num_nodes,
+    "total_datasets": 0,
+    "total_pending_annotations": 0,
+    "dataset_stats": [],
+    "shards": [
+        {
+            "rank": rank,
+            "num_tasks": 0,
+            "tasks": [],
+        }
+        for rank in range(num_nodes)
+    ],
+}
+
+manifest_path.parent.mkdir(parents=True, exist_ok=True)
+manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+print(f"[manifest] wrote minimal: {manifest_path}")
+PY
+}
+
 start_periodic_merge() {
   (
     while true; do
@@ -147,6 +185,7 @@ if [[ "$ENABLE_BUILD_MANIFEST" == "1" ]]; then
   build_manifest
 else
   echo "[INFO] skipping build manifest (ENABLE_BUILD_MANIFEST=${ENABLE_BUILD_MANIFEST})"
+  write_minimal_manifest
 fi
 
 MERGER_PID=""
