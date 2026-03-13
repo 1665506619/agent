@@ -31,8 +31,9 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # 路径配置：单节点 worker 只负责本 rank 的任务和日志
 PROJECT_ROOT="${PROJECT_ROOT:-/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/vllm_for_data}"
 AGENT_DIR="${AGENT_DIR:-/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/InsructSAM_data_promote/sam3/agent}"
-ORIGIN_DIR="${ORIGIN_DIR:-$AGENT_DIR/agent_datas/origin}"
-PROCESSED_DIR="${PROCESSED_DIR:-$AGENT_DIR/agent_datas/processed}"
+AGENT_DATA_DIR="${AGENT_DATA_DIR:-$AGENT_DIR/../agent_datas}"
+ORIGIN_DIR="${ORIGIN_DIR:-$AGENT_DATA_DIR/origin}"
+PROCESSED_DIR="${PROCESSED_DIR:-$AGENT_DATA_DIR/processed}"
 STATE_ROOT="${STATE_ROOT:-$PROCESSED_DIR/vllm_multi_node_state}"
 DELTA_DIR="${DELTA_DIR:-$STATE_ROOT/deltas}"
 

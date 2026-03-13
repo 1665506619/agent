@@ -14,8 +14,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 目录配置：origin 输入、processed 输出、state 中间状态目录
 PROJECT_ROOT="${PROJECT_ROOT:-/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/vllm_for_data}"
 AGENT_DIR="${AGENT_DIR:-/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/InsructSAM_data_promote/sam3/agent}"
-ORIGIN_DIR="${ORIGIN_DIR:-$AGENT_DIR/agent_datas/origin}"
-PROCESSED_DIR="${PROCESSED_DIR:-$AGENT_DIR/agent_datas/processed}"
+AGENT_DATA_DIR="${AGENT_DATA_DIR:-$AGENT_DIR/../agent_datas}"
+ORIGIN_DIR="${ORIGIN_DIR:-$AGENT_DATA_DIR/origin}"
+PROCESSED_DIR="${PROCESSED_DIR:-$AGENT_DATA_DIR/processed}"
 
 STATE_ROOT="${STATE_ROOT:-$PROCESSED_DIR/vllm_multi_node_state}"
 DELTA_DIR="${DELTA_DIR:-$STATE_ROOT/deltas}"
@@ -116,6 +117,7 @@ fi
 # Export runtime settings for node workers.
 export PROJECT_ROOT
 export AGENT_DIR
+export AGENT_DATA_DIR
 export ORIGIN_DIR
 export PROCESSED_DIR
 export STATE_ROOT
