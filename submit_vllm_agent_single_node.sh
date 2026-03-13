@@ -73,7 +73,7 @@ echo "[INFO] vLLM base URL: ${VLLM_BASE_URL}"
 
 echo "[INFO] Starting vLLM server..."
 cd "$PROJECT_ROOT"
-
+export VLLM_ENGINE_READY_TIMEOUT_S=1200
 .venv/bin/vllm serve "$MODEL" \
   --tensor-parallel-size "$TENSOR_PARALLEL_SIZE" \
   --data-parallel-size "$DATA_PARALLEL_SIZE" \
