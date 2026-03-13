@@ -20,6 +20,8 @@ NUM_NODES="${NUM_NODES:-1}"
 NODE_RANK="${NODE_RANK:-${SLURM_PROCID:-${SLURM_NODEID:-0}}}"
 ORIGIN_RECURSIVE="${ORIGIN_RECURSIVE:-0}"
 MERGE_INTERVAL_S="${MERGE_INTERVAL_S:-60}"
+ENABLE_PRE_MERGE="${ENABLE_PRE_MERGE:-0}"
+ENABLE_BUILD_MANIFEST="${ENABLE_BUILD_MANIFEST:-1}"
 
 JOB_ID="${SLURM_JOB_ID:-manual}"
 MANIFEST_PATH="${MANIFEST_PATH:-$STATE_ROOT/manifests/manifest_node_worker_min_${JOB_ID}_${NODE_RANK}.json}"
@@ -133,8 +135,19 @@ export LLM_RETRY_BACKOFF_S="${LLM_RETRY_BACKOFF_S:-}"
 export VLLM_STARTUP_TIMEOUT_S="${VLLM_STARTUP_TIMEOUT_S:-}"
 export LOG_ROOT="${LOG_ROOT:-}"
 
-merge_once "$JOB_ID"
-build_manifest
+if [[ "$ENABLE_PRE_MERGE" == "1" ]]; then
+  echo "[INFO] running pre-merge"
+  merge_once "$JOB_ID"
+else
+  echo "[INFO] skipping pre-merge (ENABLE_PRE_MERGE=${ENABLE_PRE_MERGE})"
+fi
+
+if [[ "$ENABLE_BUILD_MANIFEST" == "1" ]]; then
+  echo "[INFO] running build manifest"
+  build_manifest
+else
+  echo "[INFO] skipping build manifest (ENABLE_BUILD_MANIFEST=${ENABLE_BUILD_MANIFEST})"
+fi
 
 MERGER_PID=""
 if [[ "$MERGE_INTERVAL_S" -gt 0 ]]; then
