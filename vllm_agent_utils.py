@@ -117,6 +117,7 @@ def build_failed_payload(
 
 
 PROCESSED_ANSWER_MARKER = "processed"
+USE_ORIGIN_ANSWER_MARKER = "use_origin"
 
 
 def is_completed_annotation(
@@ -126,7 +127,7 @@ def is_completed_annotation(
     prompt: Any,
 ) -> bool:
     answer = annotation.get("answer")
-    if answer == PROCESSED_ANSWER_MARKER:
+    if answer in {PROCESSED_ANSWER_MARKER, USE_ORIGIN_ANSWER_MARKER}:
         return True
 
     # Backward compatibility for older structured answer payloads.

@@ -18,6 +18,7 @@ from .vllm_agent_utils import (
     log,
     prediction_to_ann,
     PROCESSED_ANSWER_MARKER,
+    USE_ORIGIN_ANSWER_MARKER,
     resolve_image_path,
     should_preserve_original_ann,
 )
@@ -81,9 +82,9 @@ def process_annotation_task(
             "annotation_idx": ann_idx,
             "image": raw_image_path,
             "text": prompt,
-            "ann": [],
+            "ann": list(original_ann),
             "error": str(exc),
-            "preserve_original_ann": False,
+            "preserve_original_ann": True,
             "num_masks": 0,
             "termination_reason": None,
             "output_json_path": None,
@@ -278,8 +279,12 @@ def run_vllm_sam3_dataset(
                     continue
 
                 if image_error is not None:
-                    output_dataset[sample_idx]["annotation"][ann_idx]["ann"] = []
-                    output_dataset[sample_idx]["annotation"][ann_idx]["answer"] = ""
+                    output_dataset[sample_idx]["annotation"][ann_idx]["ann"] = list(
+                        annotation.get("ann", [])
+                    )
+                    output_dataset[sample_idx]["annotation"][ann_idx]["answer"] = (
+                        USE_ORIGIN_ANSWER_MARKER
+                    )
                     append_failed_debug(
                         failed_path,
                         build_failed_payload(
@@ -300,8 +305,12 @@ def run_vllm_sam3_dataset(
                     continue
 
                 if not isinstance(prompt, str) or not prompt.strip():
-                    output_dataset[sample_idx]["annotation"][ann_idx]["ann"] = []
-                    output_dataset[sample_idx]["annotation"][ann_idx]["answer"] = ""
+                    output_dataset[sample_idx]["annotation"][ann_idx]["ann"] = list(
+                        annotation.get("ann", [])
+                    )
+                    output_dataset[sample_idx]["annotation"][ann_idx]["answer"] = (
+                        USE_ORIGIN_ANSWER_MARKER
+                    )
                     append_failed_debug(
                         failed_path,
                         build_failed_payload(
@@ -353,7 +362,9 @@ def run_vllm_sam3_dataset(
             raw_image_path = result["image"]
             output_dataset[sample_idx]["annotation"][ann_idx]["ann"] = result["ann"]
             output_dataset[sample_idx]["annotation"][ann_idx]["answer"] = (
-                "" if result["error"] is not None else PROCESSED_ANSWER_MARKER
+                USE_ORIGIN_ANSWER_MARKER
+                if result["error"] is not None
+                else PROCESSED_ANSWER_MARKER
             )
 
             if result["error"] is not None:
