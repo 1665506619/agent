@@ -187,37 +187,6 @@ wait_for_all_worker_statuses() {
   return 1
 }
 
-# Export runtime settings for node workers.
-export PROJECT_ROOT
-export AGENT_DIR
-export AGENT_DATA_DIR
-export ORIGIN_DIR
-export PROCESSED_DIR
-export STATE_ROOT
-export DELTA_DIR
-export MODEL
-export IMAGE_ROOT
-
-# Optional knobs consumed by node worker.
-export VLLM_BIN="${VLLM_BIN:-}"
-export AGENT_PYTHON="${AGENT_PYTHON:-}"
-export VLLM_HOST="${VLLM_HOST:-}"
-export VLLM_PORT="${VLLM_PORT:-}"
-export TENSOR_PARALLEL_SIZE="${TENSOR_PARALLEL_SIZE:-}"
-export DATA_PARALLEL_SIZE="${DATA_PARALLEL_SIZE:-}"
-export MAX_MODEL_LEN="${MAX_MODEL_LEN:-}"
-export GPU_MEMORY_UTILIZATION="${GPU_MEMORY_UTILIZATION:-}"
-export MAX_NUM_SEQS="${MAX_NUM_SEQS:-}"
-export AGENT_MAX_GENERATIONS="${AGENT_MAX_GENERATIONS:-}"
-export AGENT_NUM_WORKERS="${AGENT_NUM_WORKERS:-}"
-export AGENT_DATASET_CACHE_SIZE="${AGENT_DATASET_CACHE_SIZE:-}"
-export SAM3_CHECKPOINT_PATH="${SAM3_CHECKPOINT_PATH:-}"
-export LLM_REQUEST_INTERVAL_S="${LLM_REQUEST_INTERVAL_S:-}"
-export LLM_MAX_RETRIES="${LLM_MAX_RETRIES:-}"
-export LLM_RETRY_BACKOFF_S="${LLM_RETRY_BACKOFF_S:-}"
-export VLLM_STARTUP_TIMEOUT_S="${VLLM_STARTUP_TIMEOUT_S:-}"
-export LOG_ROOT="${LOG_ROOT:-}"
-
 MERGER_PID=""
 if [[ "$NODE_RANK" -eq 0 ]]; then
   rm -f "$MANIFEST_READY_PATH" "$MANIFEST_FAILED_PATH"
