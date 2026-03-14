@@ -41,7 +41,7 @@ MODEL="${MODEL:-Qwen/Qwen3-VL-30B-A3B-Instruct}"
 IMAGE_ROOT="${IMAGE_ROOT:-/lustre/fs11/portfolios/llmservice/users/zhidingy/wsh-ws/playground/region/data}"
 
 VLLM_HOST="${VLLM_HOST:-127.0.0.1}"
-VLLM_PORT="${VLLM_PORT:-8000}"
+VLLM_PORT="${VLLM_PORT:-8081}"
 VLLM_BASE_URL="http://${VLLM_HOST}:${VLLM_PORT}/v1"
 
 TENSOR_PARALLEL_SIZE="${TENSOR_PARALLEL_SIZE:-1}"
