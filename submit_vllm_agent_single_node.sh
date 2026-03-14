@@ -15,6 +15,8 @@ set -euo pipefail
 PROJECT_ROOT="${PROJECT_ROOT:-/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/vllm_for_data}"
 AGENT_DIR="${AGENT_DIR:-/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/InsructSAM_data_promote/sam3/agent}"
 MODEL="${MODEL:-Qwen/Qwen3-VL-30B-A3B-Instruct}"
+AGENT_DATA_DIR="${AGENT_DATA_DIR:-$AGENT_DIR/../agent_datas}"
+SAM3_CHECKPOINT_PATH="${SAM3_CHECKPOINT_PATH:-$AGENT_DATA_DIR/../weights/sam3.pt}"
 
 VLLM_HOST="${VLLM_HOST:-127.0.0.1}"
 VLLM_PORT="${VLLM_PORT:-8000}"
@@ -71,6 +73,7 @@ echo "[INFO] PROJECT_ROOT: ${PROJECT_ROOT}"
 echo "[INFO] AGENT_DIR: ${AGENT_DIR}"
 echo "[INFO] MODEL: ${MODEL}"
 echo "[INFO] vLLM base URL: ${VLLM_BASE_URL}"
+echo "[INFO] SAM3 checkpoint: ${SAM3_CHECKPOINT_PATH}"
 
 echo "[INFO] Starting vLLM server..."
 cd "$PROJECT_ROOT"
@@ -119,6 +122,7 @@ python vllm_agent.py \
   --max-generations "$AGENT_MAX_GENERATIONS" \
   --base-url "$VLLM_BASE_URL" \
   --num-workers "$AGENT_NUM_WORKERS" \
+  --sam3-checkpoint-path "$SAM3_CHECKPOINT_PATH" \
   "${EXTRA_AGENT_ARGS[@]}" \
   >"$AGENT_LOG" 2>&1 || AGENT_EXIT_CODE=$?
 

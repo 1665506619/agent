@@ -53,7 +53,7 @@ MAX_NUM_SEQS="${MAX_NUM_SEQS:-8}"
 AGENT_MAX_GENERATIONS="${AGENT_MAX_GENERATIONS:-4}"
 AGENT_NUM_WORKERS="${AGENT_NUM_WORKERS:-8}"
 AGENT_DATASET_CACHE_SIZE="${AGENT_DATASET_CACHE_SIZE:-64}"
-SAM3_CHECKPOINT_PATH="${SAM3_CHECKPOINT_PATH:-}"
+SAM3_CHECKPOINT_PATH="${SAM3_CHECKPOINT_PATH:-$AGENT_DATA_DIR/../weights/sam3.pt}"
 LLM_REQUEST_INTERVAL_S="${LLM_REQUEST_INTERVAL_S:-0}"
 LLM_MAX_RETRIES="${LLM_MAX_RETRIES:-0}"
 LLM_RETRY_BACKOFF_S="${LLM_RETRY_BACKOFF_S:-8}"
@@ -81,6 +81,7 @@ echo "[DEBUG][node ${NODE_RANK}] cuda_visible_devices=${CUDA_VISIBLE_DEVICES:-un
 echo "[DEBUG][node ${NODE_RANK}] vllm_bin=${VLLM_BIN}"
 echo "[DEBUG][node ${NODE_RANK}] base_url=${VLLM_BASE_URL} tp=${TENSOR_PARALLEL_SIZE} dp=${DATA_PARALLEL_SIZE}"
 echo "[DEBUG][node ${NODE_RANK}] engine_ready_timeout=${VLLM_ENGINE_READY_TIMEOUT_S} startup_timeout=${VLLM_STARTUP_TIMEOUT_S}"
+echo "[DEBUG][node ${NODE_RANK}] sam3_checkpoint_path=${SAM3_CHECKPOINT_PATH}"
 if command -v pgrep >/dev/null 2>&1; then
   echo "[DEBUG][node ${NODE_RANK}] pre-existing vllm serve processes:"
   pgrep -af "vllm.*serve" || true
