@@ -90,7 +90,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--base-url",
-        default="http://127.0.0.1:8081/v1",
+        default="http://127.0.0.1:8000/v1",
         help="OpenAI-compatible base URL. Point this to vLLM when running locally.",
     )
     parser.add_argument(

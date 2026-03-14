@@ -17,7 +17,7 @@ AGENT_DIR="${AGENT_DIR:-/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision
 MODEL="${MODEL:-Qwen/Qwen3-VL-30B-A3B-Instruct}"
 
 VLLM_HOST="${VLLM_HOST:-127.0.0.1}"
-VLLM_PORT="${VLLM_PORT:-8081}"
+VLLM_PORT="${VLLM_PORT:-8000}"
 VLLM_BASE_URL="http://${VLLM_HOST}:${VLLM_PORT}/v1"
 
 TENSOR_PARALLEL_SIZE="${TENSOR_PARALLEL_SIZE:-1}"

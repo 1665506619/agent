@@ -99,7 +99,7 @@ def run_vllm_sam3_dataset(
     image_root: Optional[str] = None,
     api_key: Optional[str] = None,
     model: str = "Qwen/Qwen3-VL-30B-A3B-Instruct",
-    base_url: str = "http://127.0.0.1:8081/v1",
+    base_url: str = "http://127.0.0.1:8000/v1",
     output_json_path: Optional[str] = None,
     artifact_dir: Optional[str] = None,
     failed_debug_path: Optional[str] = None,
