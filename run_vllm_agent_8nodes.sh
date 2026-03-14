@@ -17,7 +17,7 @@ STATE_ROOT="${STATE_ROOT:-$PROCESSED_DIR/vllm_multi_node_state}"
 DELTA_DIR="${DELTA_DIR:-$STATE_ROOT/deltas}"
 CHECKPOINT_PATH="${CHECKPOINT_PATH:-$STATE_ROOT/merge_checkpoint.json}"
 
-MODEL="${MODEL:-Qwen/Qwen3-VL-30B-A3B-Instruct}"
+MODEL="${MODEL:-/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/weights/Qwen3-VL-30B-A3B-Instruct}"
 IMAGE_ROOT="${IMAGE_ROOT:-/lustre/fs11/portfolios/llmservice/users/zhidingy/wsh-ws/playground/region/data}"
 
 NUM_NODES="${NUM_NODES:-${SLURM_JOB_NUM_NODES:-${SLURM_NNODES:-1}}}"

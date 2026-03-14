@@ -37,7 +37,7 @@ PROCESSED_DIR="${PROCESSED_DIR:-$AGENT_DATA_DIR/processed}"
 STATE_ROOT="${STATE_ROOT:-$PROCESSED_DIR/vllm_multi_node_state}"
 DELTA_DIR="${DELTA_DIR:-$STATE_ROOT/deltas}"
 
-MODEL="${MODEL:-Qwen/Qwen3-VL-30B-A3B-Instruct}"
+MODEL="${MODEL:-/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/weights/Qwen3-VL-30B-A3B-Instruct}"
 IMAGE_ROOT="${IMAGE_ROOT:-/lustre/fs11/portfolios/llmservice/users/zhidingy/wsh-ws/playground/region/data}"
 
 VLLM_HOST="${VLLM_HOST:-127.0.0.1}"
@@ -60,6 +60,8 @@ LLM_RETRY_BACKOFF_S="${LLM_RETRY_BACKOFF_S:-8}"
 
 VLLM_ENGINE_READY_TIMEOUT_S="${VLLM_ENGINE_READY_TIMEOUT_S:-1800}"
 VLLM_STARTUP_TIMEOUT_S="${VLLM_STARTUP_TIMEOUT_S:-2400}"
+HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
+TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"
 
 VLLM_BIN="${VLLM_BIN:-$PROJECT_ROOT/.venv/bin/vllm}"
 AGENT_PYTHON="${AGENT_PYTHON:-python}"
@@ -79,8 +81,10 @@ mkdir -p "$NODE_LOG_DIR" "$DELTA_DIR"
 echo "[DEBUG][node ${NODE_RANK}] host=$(hostname) pid=$$"
 echo "[DEBUG][node ${NODE_RANK}] cuda_visible_devices=${CUDA_VISIBLE_DEVICES:-unset}"
 echo "[DEBUG][node ${NODE_RANK}] vllm_bin=${VLLM_BIN}"
+echo "[DEBUG][node ${NODE_RANK}] model=${MODEL}"
 echo "[DEBUG][node ${NODE_RANK}] base_url=${VLLM_BASE_URL} tp=${TENSOR_PARALLEL_SIZE} dp=${DATA_PARALLEL_SIZE}"
 echo "[DEBUG][node ${NODE_RANK}] engine_ready_timeout=${VLLM_ENGINE_READY_TIMEOUT_S} startup_timeout=${VLLM_STARTUP_TIMEOUT_S}"
+echo "[DEBUG][node ${NODE_RANK}] hf_hub_offline=${HF_HUB_OFFLINE} transformers_offline=${TRANSFORMERS_OFFLINE}"
 echo "[DEBUG][node ${NODE_RANK}] sam3_checkpoint_path=${SAM3_CHECKPOINT_PATH}"
 if command -v pgrep >/dev/null 2>&1; then
   echo "[DEBUG][node ${NODE_RANK}] pre-existing vllm serve processes:"
@@ -95,10 +99,16 @@ if [[ -n "$SAM3_CHECKPOINT_PATH" && ! -f "$SAM3_CHECKPOINT_PATH" ]]; then
   echo "[ERROR][node ${NODE_RANK}] SAM3 checkpoint not found: $SAM3_CHECKPOINT_PATH"
   exit 2
 fi
+if [[ ! -d "$MODEL" ]]; then
+  echo "[ERROR][node ${NODE_RANK}] local model directory not found: $MODEL"
+  exit 2
+fi
 
 echo "[INFO][node ${NODE_RANK}] starting vLLM on ${VLLM_BASE_URL}"
 cd "$PROJECT_ROOT"
 VLLM_ENGINE_READY_TIMEOUT_S="$VLLM_ENGINE_READY_TIMEOUT_S" \
+HF_HUB_OFFLINE="$HF_HUB_OFFLINE" \
+TRANSFORMERS_OFFLINE="$TRANSFORMERS_OFFLINE" \
 "$VLLM_BIN" serve "$MODEL" \
   --tensor-parallel-size "$TENSOR_PARALLEL_SIZE" \
   --data-parallel-size "$DATA_PARALLEL_SIZE" \

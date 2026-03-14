@@ -14,7 +14,7 @@ set -euo pipefail
 # ------------------------
 PROJECT_ROOT="${PROJECT_ROOT:-/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/vllm_for_data}"
 AGENT_DIR="${AGENT_DIR:-/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/InsructSAM_data_promote/sam3/agent}"
-MODEL="${MODEL:-Qwen/Qwen3-VL-30B-A3B-Instruct}"
+MODEL="${MODEL:-/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/weights/Qwen3-VL-30B-A3B-Instruct}"
 AGENT_DATA_DIR="${AGENT_DATA_DIR:-$AGENT_DIR/../agent_datas}"
 SAM3_CHECKPOINT_PATH="${SAM3_CHECKPOINT_PATH:-$AGENT_DATA_DIR/../weights/sam3.pt}"
 
@@ -33,6 +33,8 @@ AGENT_NUM_WORKERS="${AGENT_NUM_WORKERS:-8}"
 
 VLLM_ENGINE_READY_TIMEOUT_S="${VLLM_ENGINE_READY_TIMEOUT_S:-1800}"
 VLLM_STARTUP_TIMEOUT_S="${VLLM_STARTUP_TIMEOUT_S:-2400}"
+HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
+TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"
 
 # Any extra args passed to this script are forwarded to vllm_agent.py
 EXTRA_AGENT_ARGS=("$@")
@@ -74,15 +76,23 @@ echo "[INFO] AGENT_DIR: ${AGENT_DIR}"
 echo "[INFO] MODEL: ${MODEL}"
 echo "[INFO] vLLM base URL: ${VLLM_BASE_URL}"
 echo "[INFO] SAM3 checkpoint: ${SAM3_CHECKPOINT_PATH}"
+echo "[INFO] HF_HUB_OFFLINE: ${HF_HUB_OFFLINE}"
+echo "[INFO] TRANSFORMERS_OFFLINE: ${TRANSFORMERS_OFFLINE}"
 
 if [[ ! -f "$SAM3_CHECKPOINT_PATH" ]]; then
   echo "[ERROR] SAM3 checkpoint not found: ${SAM3_CHECKPOINT_PATH}"
+  exit 1
+fi
+if [[ ! -d "$MODEL" ]]; then
+  echo "[ERROR] local model directory not found: ${MODEL}"
   exit 1
 fi
 
 echo "[INFO] Starting vLLM server..."
 cd "$PROJECT_ROOT"
 export VLLM_ENGINE_READY_TIMEOUT_S
+export HF_HUB_OFFLINE
+export TRANSFORMERS_OFFLINE
 .venv/bin/vllm serve "$MODEL" \
   --tensor-parallel-size "$TENSOR_PARALLEL_SIZE" \
   --data-parallel-size "$DATA_PARALLEL_SIZE" \

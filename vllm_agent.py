@@ -85,7 +85,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--model",
-        default="Qwen/Qwen3-VL-30B-A3B-Instruct",
+        default="/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/weights/Qwen3-VL-30B-A3B-Instruct",
         help="Model name served by the OpenAI-compatible endpoint.",
     )
     parser.add_argument(
