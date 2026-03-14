@@ -50,7 +50,7 @@ MAX_MODEL_LEN="${MAX_MODEL_LEN:-32768}"
 GPU_MEMORY_UTILIZATION="${GPU_MEMORY_UTILIZATION:-0.85}"
 MAX_NUM_SEQS="${MAX_NUM_SEQS:-8}"
 
-AGENT_MAX_GENERATIONS="${AGENT_MAX_GENERATIONS:-4}"
+AGENT_MAX_GENERATIONS="${AGENT_MAX_GENERATIONS:-20}"
 AGENT_NUM_WORKERS="${AGENT_NUM_WORKERS:-8}"
 AGENT_DATASET_CACHE_SIZE="${AGENT_DATASET_CACHE_SIZE:-64}"
 SAM3_CHECKPOINT_PATH="${SAM3_CHECKPOINT_PATH:-$AGENT_DATA_DIR/../weights/sam3.pt}"
@@ -89,6 +89,11 @@ fi
 if command -v ss >/dev/null 2>&1; then
   echo "[DEBUG][node ${NODE_RANK}] listeners on port ${VLLM_PORT}:"
   ss -ltnp "( sport = :${VLLM_PORT} )" || true
+fi
+
+if [[ -n "$SAM3_CHECKPOINT_PATH" && ! -f "$SAM3_CHECKPOINT_PATH" ]]; then
+  echo "[ERROR][node ${NODE_RANK}] SAM3 checkpoint not found: $SAM3_CHECKPOINT_PATH"
+  exit 2
 fi
 
 echo "[INFO][node ${NODE_RANK}] starting vLLM on ${VLLM_BASE_URL}"

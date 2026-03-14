@@ -32,6 +32,10 @@ def build_sam3_processor(
     sam3_root = os.path.dirname(sam3.__file__)
     bpe_path = os.path.join(sam3_root, "assets", "bpe_simple_vocab_16e6.txt.gz")
     checkpoint_path = checkpoint_path or os.getenv("SAM3_CHECKPOINT_PATH")
+    if checkpoint_path is not None:
+        checkpoint_path = os.path.abspath(checkpoint_path)
+        if not os.path.isfile(checkpoint_path):
+            raise FileNotFoundError(f"SAM3 checkpoint not found: {checkpoint_path}")
     load_from_hf = checkpoint_path is None
     model = build_sam3_image_model(
         bpe_path=bpe_path,

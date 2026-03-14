@@ -75,6 +75,11 @@ echo "[INFO] MODEL: ${MODEL}"
 echo "[INFO] vLLM base URL: ${VLLM_BASE_URL}"
 echo "[INFO] SAM3 checkpoint: ${SAM3_CHECKPOINT_PATH}"
 
+if [[ ! -f "$SAM3_CHECKPOINT_PATH" ]]; then
+  echo "[ERROR] SAM3 checkpoint not found: ${SAM3_CHECKPOINT_PATH}"
+  exit 1
+fi
+
 echo "[INFO] Starting vLLM server..."
 cd "$PROJECT_ROOT"
 export VLLM_ENGINE_READY_TIMEOUT_S
