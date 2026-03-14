@@ -29,7 +29,8 @@ MAX_NUM_SEQS="${MAX_NUM_SEQS:-8}"
 AGENT_MAX_GENERATIONS="${AGENT_MAX_GENERATIONS:-20}"
 AGENT_NUM_WORKERS="${AGENT_NUM_WORKERS:-8}"
 
-VLLM_STARTUP_TIMEOUT_S="${VLLM_STARTUP_TIMEOUT_S:-600}"
+VLLM_ENGINE_READY_TIMEOUT_S="${VLLM_ENGINE_READY_TIMEOUT_S:-1800}"
+VLLM_STARTUP_TIMEOUT_S="${VLLM_STARTUP_TIMEOUT_S:-2400}"
 
 # Any extra args passed to this script are forwarded to vllm_agent.py
 EXTRA_AGENT_ARGS=("$@")
@@ -73,7 +74,7 @@ echo "[INFO] vLLM base URL: ${VLLM_BASE_URL}"
 
 echo "[INFO] Starting vLLM server..."
 cd "$PROJECT_ROOT"
-export VLLM_ENGINE_READY_TIMEOUT_S=1200
+export VLLM_ENGINE_READY_TIMEOUT_S
 .venv/bin/vllm serve "$MODEL" \
   --tensor-parallel-size "$TENSOR_PARALLEL_SIZE" \
   --data-parallel-size "$DATA_PARALLEL_SIZE" \

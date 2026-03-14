@@ -58,7 +58,8 @@ LLM_REQUEST_INTERVAL_S="${LLM_REQUEST_INTERVAL_S:-0}"
 LLM_MAX_RETRIES="${LLM_MAX_RETRIES:-0}"
 LLM_RETRY_BACKOFF_S="${LLM_RETRY_BACKOFF_S:-8}"
 
-VLLM_STARTUP_TIMEOUT_S="${VLLM_STARTUP_TIMEOUT_S:-1200}"
+VLLM_ENGINE_READY_TIMEOUT_S="${VLLM_ENGINE_READY_TIMEOUT_S:-1800}"
+VLLM_STARTUP_TIMEOUT_S="${VLLM_STARTUP_TIMEOUT_S:-2400}"
 
 VLLM_BIN="${VLLM_BIN:-$PROJECT_ROOT/.venv/bin/vllm}"
 AGENT_PYTHON="${AGENT_PYTHON:-python}"
@@ -79,6 +80,7 @@ echo "[DEBUG][node ${NODE_RANK}] host=$(hostname) pid=$$"
 echo "[DEBUG][node ${NODE_RANK}] cuda_visible_devices=${CUDA_VISIBLE_DEVICES:-unset}"
 echo "[DEBUG][node ${NODE_RANK}] vllm_bin=${VLLM_BIN}"
 echo "[DEBUG][node ${NODE_RANK}] base_url=${VLLM_BASE_URL} tp=${TENSOR_PARALLEL_SIZE} dp=${DATA_PARALLEL_SIZE}"
+echo "[DEBUG][node ${NODE_RANK}] engine_ready_timeout=${VLLM_ENGINE_READY_TIMEOUT_S} startup_timeout=${VLLM_STARTUP_TIMEOUT_S}"
 if command -v pgrep >/dev/null 2>&1; then
   echo "[DEBUG][node ${NODE_RANK}] pre-existing vllm serve processes:"
   pgrep -af "vllm.*serve" || true
@@ -90,6 +92,7 @@ fi
 
 echo "[INFO][node ${NODE_RANK}] starting vLLM on ${VLLM_BASE_URL}"
 cd "$PROJECT_ROOT"
+VLLM_ENGINE_READY_TIMEOUT_S="$VLLM_ENGINE_READY_TIMEOUT_S" \
 "$VLLM_BIN" serve "$MODEL" \
   --tensor-parallel-size "$TENSOR_PARALLEL_SIZE" \
   --data-parallel-size "$DATA_PARALLEL_SIZE" \
