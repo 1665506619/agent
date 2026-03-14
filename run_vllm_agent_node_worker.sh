@@ -103,7 +103,7 @@ if [[ ! -d "$MODEL" ]]; then
   echo "[ERROR][node ${NODE_RANK}] local model directory not found: $MODEL"
   exit 2
 fi
-
+#拉起VLLM
 echo "[INFO][node ${NODE_RANK}] starting vLLM on ${VLLM_BASE_URL}"
 cd "$PROJECT_ROOT"
 VLLM_ENGINE_READY_TIMEOUT_S="$VLLM_ENGINE_READY_TIMEOUT_S" \
@@ -144,6 +144,7 @@ if [[ "$ready" -ne 1 ]]; then
 fi
 
 echo "[INFO][node ${NODE_RANK}] running annotation worker"
+# 这个逻辑是AI实现的，但是运行这没什么问题
 # annotation worker 负责消费本 rank 的 annotation 任务并写 delta WAL
 worker_cmd=(
   "$AGENT_PYTHON" "$SCRIPT_DIR/run_vllm_agent_annotation_worker.py"

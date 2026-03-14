@@ -5,6 +5,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 思路是先用Rank0来按annotation层级做数据的分流，数据分流写入中间文件manifest，
+# 然后每台节点按照中间文件manifest找到要处理的annotation处理之后写入本机的delta文件，再周期合并到目标文件中
 
 # 目录配置：origin 输入、processed 输出、state 中间状态目录
 PROJECT_ROOT="${PROJECT_ROOT:-/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/vllm_for_data}"
@@ -37,7 +39,7 @@ MANIFEST_PYTHON="${MANIFEST_PYTHON:-python}"
 SHARD_BUILDER_SCRIPT="${SHARD_BUILDER_SCRIPT:-$SCRIPT_DIR/build_vllm_agent_file_shards.py}"
 NODE_WORKER_SCRIPT="${NODE_WORKER_SCRIPT:-$SCRIPT_DIR/run_vllm_agent_node_worker.sh}"
 MERGE_SCRIPT="${MERGE_SCRIPT:-$SCRIPT_DIR/apply_vllm_agent_deltas.py}"
-
+#检查目录
 if [[ ! -d "$ORIGIN_DIR" ]]; then
   echo "[ERROR] ORIGIN_DIR does not exist: $ORIGIN_DIR"
   exit 2
@@ -81,7 +83,7 @@ echo "[INFO] processed_dir=${PROCESSED_DIR}"
 echo "[INFO] state_root=${STATE_ROOT}"
 echo "[INFO] manifest_path=${MANIFEST_PATH}"
 echo "[INFO] sync_dir=${SYNC_DIR}"
-
+#这个是整合中间结果文件到目标文件中
 merge_once() {
   local active_job_id="${1:-}"
   local merge_cmd=(
@@ -97,7 +99,7 @@ merge_once() {
   fi
   "${merge_cmd[@]}"
 }
-
+#这个是数据分配中间文件
 build_manifest() {
   echo "[INFO][rank ${NODE_RANK}] building annotation-level manifest..."
   local manifest_cmd=(
@@ -112,7 +114,7 @@ build_manifest() {
   fi
   "${manifest_cmd[@]}"
 }
-
+#这个是周期性的merge到结果文件中
 start_periodic_merge() {
   (
     while true; do
@@ -216,6 +218,7 @@ else
   fi
 fi
 
+#这个过程包括拉起VLLM服务+实行标注写入中间结果文件delta的过程
 set +e
 SLURM_NODEID="$NODE_RANK" SLURM_PROCID="$NODE_RANK" SLURM_JOB_ID="$JOB_ID" \
   bash "$NODE_WORKER_SCRIPT" --manifest "$MANIFEST_PATH"
