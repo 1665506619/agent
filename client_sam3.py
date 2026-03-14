@@ -58,7 +58,7 @@ def call_sam_service(
     Loads an image, sends it with a text prompt to the service,
     saves the results, and renders the visualization.
     """
-    print(f"📞 Loading image '{image_path}' and sending with prompt '{text_prompt}'...")
+    print(f"[sam3] infer prompt={text_prompt!r} image={image_path}")
 
     text_prompt_for_save_path = (
         text_prompt.replace("/", "_") if "/" in text_prompt else text_prompt
@@ -125,15 +125,19 @@ def call_sam_service(
 
         with open(output_json_path, "w") as f:
             json.dump(serialized_response, f, indent=4)
-        print(f"✅ Raw JSON response saved to '{output_json_path}'")
 
         # 4. Render and save visualizations on the image and save it in the SAM3 output folder
-        print("🔍 Rendering visualizations on the image ...")
         viz_image = visualize(serialized_response)
         os.makedirs(os.path.dirname(output_image_path), exist_ok=True)
         viz_image.save(output_image_path)
-        print("✅ Saved visualization at:", output_image_path)
+        print(
+            "[sam3] masks={count} saved_json={json_path} saved_png={png_path}".format(
+                count=len(serialized_response["pred_masks"]),
+                json_path=output_json_path,
+                png_path=output_image_path,
+            )
+        )
     except Exception as e:
-        print(f"❌ Error calling service: {e}")
+        print(f"[sam3][ERROR] {e}")
 
     return output_json_path
