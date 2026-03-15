@@ -24,6 +24,7 @@ from vllm_agent_multinode_common import (
     PROCESSED_ANSWER_MARKER,
     USE_ORIGIN_ANSWER_MARKER,
     dataset_output_paths,
+    iter_jsonl_records,
     load_json_list,
 )
 
@@ -106,6 +107,29 @@ def load_tasks(manifest_path: Path, rank: int) -> List[Dict[str, Any]]:
             return tasks
 
     raise ValueError(f"Rank {rank} not found in manifest: {manifest_path}")
+
+
+def task_key(dataset_path: str, sample_idx: int, annotation_idx: int) -> tuple[str, int, int]:
+    return (str(Path(dataset_path).resolve()), int(sample_idx), int(annotation_idx))
+
+
+def load_completed_task_keys(result_path: Path) -> set[tuple[str, int, int]]:
+    # 支持多次提交复用同一份静态 manifest：已写入本地累计结果的任务直接跳过
+    completed: set[tuple[str, int, int]] = set()
+    if not result_path.exists():
+        return completed
+
+    for record in iter_jsonl_records(result_path):
+        dataset_path = record.get("dataset_path")
+        sample_idx = record.get("sample_idx")
+        annotation_idx = record.get("annotation_idx")
+        if not isinstance(dataset_path, str):
+            continue
+        if not isinstance(sample_idx, int) or not isinstance(annotation_idx, int):
+            continue
+        completed.add(task_key(dataset_path, sample_idx, annotation_idx))
+
+    return completed
 
 
 def process_task(
@@ -205,9 +229,22 @@ def main() -> None:
     if not manifest_path.exists():
         raise FileNotFoundError(f"Manifest not found: {manifest_path}")
 
-    tasks = load_tasks(manifest_path, rank=args.rank)
+    delta_path = Path(args.delta_path).resolve()
+    completed_task_keys = load_completed_task_keys(delta_path)
+
+    assigned_tasks = load_tasks(manifest_path, rank=args.rank)
+    tasks = [
+        task
+        for task in assigned_tasks
+        if task_key(task["dataset_path"], task["sample_idx"], task["annotation_idx"])
+        not in completed_task_keys
+    ]
+    skipped_completed = len(assigned_tasks) - len(tasks)
     if not tasks:
-        print(f"[worker rank={args.rank}] no tasks assigned; exiting")
+        print(
+            f"[worker rank={args.rank}] no remaining tasks; assigned={len(assigned_tasks)}, "
+            f"already_completed={skipped_completed}, result={delta_path}"
+        )
         return
 
     dataset_paths = sorted({str(Path(task["dataset_path"]).resolve()) for task in tasks})
@@ -236,14 +273,14 @@ def main() -> None:
         llm_retry_backoff_s=args.llm_retry_backoff_s,
     )
 
-    delta_path = Path(args.delta_path).resolve()
     delta_path.parent.mkdir(parents=True, exist_ok=True)
 
     total = len(tasks)
     ok = 0
     fail = 0
     print(
-        f"[worker rank={args.rank}] start tasks={total}, datasets={len(dataset_paths)}, host={socket.gethostname()}"
+        f"[worker rank={args.rank}] start assigned={len(assigned_tasks)}, remaining={total}, "
+        f"already_completed={skipped_completed}, datasets={len(dataset_paths)}, host={socket.gethostname()}"
     )
 
     with delta_path.open("a", encoding="utf-8") as delta_fp:

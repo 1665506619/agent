@@ -11,9 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 from vllm_agent_multinode_common import (
-    dataset_output_paths,
     discover_dataset_paths,
-    is_completed_answer,
     load_json_list,
 )
 
@@ -51,23 +49,8 @@ def pending_tasks_for_dataset(
     origin_dir: Path,
     processed_dir: Path,
 ) -> Tuple[List[AnnotationTask], Dict[str, int]]:
-    # 对单个数据集：找出“尚未在 processed 里完成”的 annotation
+    # 对单个数据集：把 origin 中的 annotation 全部展开成静态任务
     dataset = load_json_list(dataset_path)
-
-    output_json_path, _, _, _ = dataset_output_paths(
-        dataset_path,
-        origin_dir=origin_dir,
-        processed_dir=processed_dir,
-    )
-
-    processed_dataset: List[Dict[str, Any]] | None = None
-    if output_json_path.exists():
-        try:
-            candidate = load_json_list(output_json_path)
-        except Exception:
-            candidate = None
-        if isinstance(candidate, list) and len(candidate) == len(dataset):
-            processed_dataset = candidate
 
     tasks: List[AnnotationTask] = []
     total_annotations = 0
@@ -80,21 +63,6 @@ def pending_tasks_for_dataset(
 
         for ann_idx, _ in enumerate(annotations):
             total_annotations += 1
-
-            processed_done = False
-            if processed_dataset is not None:
-                try:
-                    processed_ann = processed_dataset[sample_idx].get("annotation", [])[ann_idx]
-                except Exception:
-                    processed_ann = None
-                if isinstance(processed_ann, dict) and is_completed_answer(
-                    processed_ann.get("answer")
-                ):
-                    processed_done = True
-                    completed_from_processed += 1
-
-            if processed_done:
-                continue
 
             tasks.append(
                 AnnotationTask(

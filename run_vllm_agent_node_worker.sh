@@ -35,7 +35,7 @@ AGENT_DATA_DIR="${AGENT_DATA_DIR:-$AGENT_DIR/../agent_datas}"
 ORIGIN_DIR="${ORIGIN_DIR:-$AGENT_DATA_DIR/origin}"
 PROCESSED_DIR="${PROCESSED_DIR:-$AGENT_DATA_DIR/processed}"
 STATE_ROOT="${STATE_ROOT:-$PROCESSED_DIR/vllm_multi_node_state}"
-DELTA_DIR="${DELTA_DIR:-$STATE_ROOT/deltas}"
+NODE_RESULT_DIR="${NODE_RESULT_DIR:-$STATE_ROOT/node_results}"
 
 MODEL="${MODEL:-/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data/data_promote/weights/Qwen3-VL-30B-A3B-Instruct}"
 IMAGE_ROOT="${IMAGE_ROOT:-/lustre/fs11/portfolios/llmservice/users/zhidingy/wsh-ws/playground/region/data}"
@@ -48,10 +48,10 @@ TENSOR_PARALLEL_SIZE="${TENSOR_PARALLEL_SIZE:-1}"
 DATA_PARALLEL_SIZE="${DATA_PARALLEL_SIZE:-8}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-64000}"
 GPU_MEMORY_UTILIZATION="${GPU_MEMORY_UTILIZATION:-0.85}"
-MAX_NUM_SEQS="${MAX_NUM_SEQS:-8}"
+MAX_NUM_SEQS="${MAX_NUM_SEQS:-4}"
 
 AGENT_MAX_GENERATIONS="${AGENT_MAX_GENERATIONS:-20}"
-AGENT_NUM_WORKERS="${AGENT_NUM_WORKERS:-16}"
+AGENT_NUM_WORKERS="${AGENT_NUM_WORKERS:-8}"
 AGENT_DATASET_CACHE_SIZE="${AGENT_DATASET_CACHE_SIZE:-4}"
 SAM3_CHECKPOINT_PATH="${SAM3_CHECKPOINT_PATH:-$AGENT_DATA_DIR/../weights/sam3.pt}"
 LLM_REQUEST_INTERVAL_S="${LLM_REQUEST_INTERVAL_S:-0}"
@@ -71,12 +71,12 @@ JOB_ID="${SLURM_JOB_ID:-manual}"
 LOG_ROOT="${LOG_ROOT:-$STATE_ROOT/logs/job_${JOB_ID}}"
 NODE_LOG_DIR="${LOG_ROOT}/node_${NODE_RANK}"
 
-DELTA_PATH="${DELTA_DIR}/job_${JOB_ID}_node_${NODE_RANK}.jsonl"
+DELTA_PATH="${DELTA_PATH:-$NODE_RESULT_DIR/rank_${NODE_RANK}.jsonl}"
 VLLM_LOG="${NODE_LOG_DIR}/vllm_server.log"
 WORKER_LOG="${NODE_LOG_DIR}/annotation_worker.log"
 
 export PYTHONPATH="$REPO_ROOT:${PYTHONPATH:-}"
-mkdir -p "$NODE_LOG_DIR" "$DELTA_DIR"
+mkdir -p "$NODE_LOG_DIR" "$NODE_RESULT_DIR"
 
 echo "[DEBUG][node ${NODE_RANK}] host=$(hostname) pid=$$"
 echo "[DEBUG][node ${NODE_RANK}] cuda_visible_devices=${CUDA_VISIBLE_DEVICES:-unset}"
@@ -85,6 +85,7 @@ echo "[DEBUG][node ${NODE_RANK}] model=${MODEL}"
 echo "[DEBUG][node ${NODE_RANK}] base_url=${VLLM_BASE_URL} tp=${TENSOR_PARALLEL_SIZE} dp=${DATA_PARALLEL_SIZE}"
 echo "[DEBUG][node ${NODE_RANK}] engine_ready_timeout=${VLLM_ENGINE_READY_TIMEOUT_S} startup_timeout=${VLLM_STARTUP_TIMEOUT_S}"
 echo "[DEBUG][node ${NODE_RANK}] hf_hub_offline=${HF_HUB_OFFLINE} transformers_offline=${TRANSFORMERS_OFFLINE}"
+echo "[DEBUG][node ${NODE_RANK}] node_result_path=${DELTA_PATH}"
 echo "[DEBUG][node ${NODE_RANK}] sam3_checkpoint_path=${SAM3_CHECKPOINT_PATH}"
 if command -v pgrep >/dev/null 2>&1; then
   echo "[DEBUG][node ${NODE_RANK}] pre-existing vllm serve processes:"
@@ -144,8 +145,7 @@ if [[ "$ready" -ne 1 ]]; then
 fi
 
 echo "[INFO][node ${NODE_RANK}] running annotation worker"
-# 这个逻辑是AI实现的，但是运行这没什么问题
-# annotation worker 负责消费本 rank 的 annotation 任务并写 delta WAL
+# annotation worker 负责消费本 rank 的 annotation 任务并累计写入本 rank 的结果文件
 worker_cmd=(
   "$AGENT_PYTHON" "$SCRIPT_DIR/run_vllm_agent_annotation_worker.py"
   --manifest "$MANIFEST_PATH"
@@ -174,4 +174,4 @@ fi
   "${worker_cmd[@]}"
 ) >"$WORKER_LOG" 2>&1
 
-echo "[INFO][node ${NODE_RANK}] worker completed. delta=${DELTA_PATH}"
+echo "[INFO][node ${NODE_RANK}] worker completed. result=${DELTA_PATH}"
