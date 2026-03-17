@@ -36,6 +36,9 @@ def resolve_image_path(
     dataset_path: Path,
     image_root: Optional[str],
 ) -> str:
+    extra_image_root = Path(
+        "/lustre/fs12/portfolios/nvr/projects/nvr_lpr_nvgptvision/users/shihaow/region/data"
+    )
     raw_path = Path(raw_image_path)
     candidates: List[Path] = []
 
@@ -43,6 +46,7 @@ def resolve_image_path(
         candidates.append(raw_path)
     if image_root:
         candidates.append(Path(image_root) / raw_path)
+    candidates.append(extra_image_root / raw_path)
     candidates.extend(
         [
             dataset_path.parent / raw_path,
