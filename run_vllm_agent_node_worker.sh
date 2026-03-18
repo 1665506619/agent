@@ -60,6 +60,8 @@ LLM_RETRY_BACKOFF_S="${LLM_RETRY_BACKOFF_S:-8}"
 
 VLLM_ENGINE_READY_TIMEOUT_S="${VLLM_ENGINE_READY_TIMEOUT_S:-1800}"
 VLLM_STARTUP_TIMEOUT_S="${VLLM_STARTUP_TIMEOUT_S:-2400}"
+VLLM_HEALTHCHECK_INTERVAL_S="${VLLM_HEALTHCHECK_INTERVAL_S:-5}"
+VLLM_HEALTHCHECK_CURL_TIMEOUT_S="${VLLM_HEALTHCHECK_CURL_TIMEOUT_S:-5}"
 HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
 TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"
 
@@ -78,12 +80,27 @@ WORKER_LOG="${NODE_LOG_DIR}/annotation_worker.log"
 export PYTHONPATH="$REPO_ROOT:${PYTHONPATH:-}"
 mkdir -p "$NODE_LOG_DIR" "$NODE_RESULT_DIR"
 
+VLLM_PID=""
+WORKER_PID=""
+
+cleanup() {
+  if [[ -n "$WORKER_PID" ]] && kill -0 "$WORKER_PID" >/dev/null 2>&1; then
+    kill "$WORKER_PID" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "$VLLM_PID" ]] && kill -0 "$VLLM_PID" >/dev/null 2>&1; then
+    kill "$VLLM_PID" >/dev/null 2>&1 || true
+  fi
+}
+
+trap cleanup EXIT INT TERM
+
 echo "[DEBUG][node ${NODE_RANK}] host=$(hostname) pid=$$"
 echo "[DEBUG][node ${NODE_RANK}] cuda_visible_devices=${CUDA_VISIBLE_DEVICES:-unset}"
 echo "[DEBUG][node ${NODE_RANK}] vllm_bin=${VLLM_BIN}"
 echo "[DEBUG][node ${NODE_RANK}] model=${MODEL}"
 echo "[DEBUG][node ${NODE_RANK}] base_url=${VLLM_BASE_URL} tp=${TENSOR_PARALLEL_SIZE} dp=${DATA_PARALLEL_SIZE}"
 echo "[DEBUG][node ${NODE_RANK}] engine_ready_timeout=${VLLM_ENGINE_READY_TIMEOUT_S} startup_timeout=${VLLM_STARTUP_TIMEOUT_S}"
+echo "[DEBUG][node ${NODE_RANK}] healthcheck_interval=${VLLM_HEALTHCHECK_INTERVAL_S}s curl_timeout=${VLLM_HEALTHCHECK_CURL_TIMEOUT_S}s"
 echo "[DEBUG][node ${NODE_RANK}] hf_hub_offline=${HF_HUB_OFFLINE} transformers_offline=${TRANSFORMERS_OFFLINE}"
 echo "[DEBUG][node ${NODE_RANK}] node_result_path=${DELTA_PATH}"
 echo "[DEBUG][node ${NODE_RANK}] sam3_checkpoint_path=${SAM3_CHECKPOINT_PATH}"
@@ -172,6 +189,37 @@ fi
 (
   cd "$AGENT_DIR"
   "${worker_cmd[@]}"
-) >"$WORKER_LOG" 2>&1
+) >"$WORKER_LOG" 2>&1 &
+
+WORKER_PID=$!
+
+while kill -0 "$WORKER_PID" >/dev/null 2>&1; do
+  if ! kill -0 "$VLLM_PID" >/dev/null 2>&1; then
+    echo "[ERROR][node ${NODE_RANK}] vLLM process exited while annotation worker is still running"
+    tail -n 200 "$VLLM_LOG" || true
+    kill "$WORKER_PID" >/dev/null 2>&1 || true
+    wait "$WORKER_PID" || true
+    exit 1
+  fi
+
+  if ! curl -fsS --max-time "$VLLM_HEALTHCHECK_CURL_TIMEOUT_S" "${VLLM_BASE_URL}/models" >/dev/null 2>&1; then
+    echo "[ERROR][node ${NODE_RANK}] vLLM health check failed during annotation worker execution"
+    tail -n 200 "$VLLM_LOG" || true
+    kill "$WORKER_PID" >/dev/null 2>&1 || true
+    wait "$WORKER_PID" || true
+    exit 1
+  fi
+
+  sleep "$VLLM_HEALTHCHECK_INTERVAL_S"
+done
+
+wait "$WORKER_PID"
+WORKER_RC=$?
+
+if [[ "$WORKER_RC" -ne 0 ]]; then
+  echo "[ERROR][node ${NODE_RANK}] annotation worker failed with exit code ${WORKER_RC}"
+  tail -n 200 "$WORKER_LOG" || true
+  exit "$WORKER_RC"
+fi
 
 echo "[INFO][node ${NODE_RANK}] worker completed. result=${DELTA_PATH}"
